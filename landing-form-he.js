@@ -105,7 +105,9 @@
 
     var name    = sanitize(fieldVal('f-name')).slice(0, 60);
     var phone   = sanitize(fieldVal('f-phone')).slice(0, 15);
-    var address = sanitize(fieldVal('f-address')).slice(0, 120);
+    var city    = sanitize(fieldVal('f-city')).slice(0, 60);
+    var street  = sanitize(fieldVal('f-street')).slice(0, 60);
+    var address = [city, street].filter(Boolean).join(', ');
     var VALID_ROOMS = ['2 חדרים', '3 חדרים', '4 חדרים', '5 חדרים ומעלה'];
     var rooms = fieldVal('f-rooms');
     var roomsSafe = (VALID_ROOMS.indexOf(rooms) !== -1) ? rooms : '';
@@ -136,7 +138,8 @@
         שם: name,
         טלפון: phone,
         מייל: email || '-',
-        כתובת: address || '-',
+        עיר:   city   || '-',
+        רחוב:  street || '-',
         גודל: roomsSafe,
         מחיר: price,
         הערות: notes || '-',
