@@ -1479,14 +1479,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
 
             <div class="form-group" id="g-city">
-              <label for="f-city">עיר <span class="opt">(לא חובה)</span></label>
+              <label for="f-city">עיר</label>
               <input type="text" id="f-city" name="city"
                 placeholder="לדוגמה: ערד" maxlength="60" />
+              <div class="err-msg" id="g-city-err" role="alert" aria-hidden="true">נא להזין שם עיר</div>
             </div>
             <div class="form-group" id="g-street">
-              <label for="f-street">רחוב <span class="opt">(לא חובה)</span></label>
+              <label for="f-street">רחוב</label>
               <input type="text" id="f-street" name="street"
                 placeholder="לדוגמה: רח׳ הרצל 5" maxlength="60" />
+              <div class="err-msg" id="g-street-err" role="alert" aria-hidden="true">נא להזין שם רחוב</div>
             </div>
 
             <div class="form-group" id="g-rooms">

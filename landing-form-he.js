@@ -74,6 +74,8 @@
     var rooms   = fieldVal('f-rooms');
     var price   = fieldVal('f-price');
     var email   = fieldVal('f-email');
+    var city    = fieldVal('f-city');
+    var street  = fieldVal('f-street');
     var consent = document.getElementById('f-consent').checked;
     var ok = true;
 
@@ -82,6 +84,8 @@
     if (!rooms)                                      { setError('g-rooms',   true);  ok = false; } else { setError('g-rooms',   false); }
     if (!price || !PRICE_RE.test(price))             { setError('g-price',   true);  ok = false; } else { setError('g-price',   false); }
     if (email && !EMAIL_RE.test(email))              { setError('g-email',   true);  ok = false; } else { setError('g-email',   false); }
+    if (city.length < 2)                             { setError('g-city',    true);  ok = false; } else { setError('g-city',    false); }
+    if (street.length < 2)                           { setError('g-street',  true);  ok = false; } else { setError('g-street',  false); }
     if (!consent)                                    { setError('g-consent', true);  ok = false; } else { setError('g-consent', false); }
 
     return ok;
