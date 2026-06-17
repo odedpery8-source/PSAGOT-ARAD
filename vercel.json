@@ -1,7 +1,7 @@
 {
   "redirects": [
     { "source": "/ru", "destination": "/דף נחיתה-ru.html", "permanent": true },
-    { "source": "/he", "destination": "/דף נחיתה.html",    "permanent": true }
+    { "source": "/he", "destination": "/",                  "permanent": true }
   ],
   "headers": [
     {
