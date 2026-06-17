@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ניהול לידים — פסגות נכסים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0D0D0D;
+      --surface:  #141414;
+      --card:     #1A1A1A;
+      --border:   rgba(139,92,246,.18);
+      --purple:   #8B5CF6;
+      --purple-d: #6D28D9;
+      --purple-g: rgba(139,92,246,.22);
+      --white:    #FFFFFF;
+      --gray:     #9CA3AF;
+      --gray-l:   #D1D5DB;
+      --green:    #10B981;
+      --yellow:   #F59E0B;
+      --red:      #EF4444;
+      --blue:     #3B82F6;
+    }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      direction: rtl;
+    }
+
+    /* ── VIEWS ─────────────────────────────── */
+    .view { display: none; }
+    .view.active { display: flex; }
+
+    /* ── LOGIN VIEW ─────────────────────────── */
+    #view-login {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 28px;
+      padding: 24px;
+      background: radial-gradient(ellipse at 50% 80%, rgba(109,40,217,.15) 0%, transparent 60%);
+    }
+    #view-login .login-logo { height: 72px; mix-blend-mode: screen; display: block; }
+    #view-login h1 { font-size: 1.45rem; font-weight: 800; text-align: center; }
+    #view-login p  { color: var(--gray); font-size: .9rem; text-align: center; }
+
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      color: #1F2937;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 13px 28px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .google-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.5); }
+    .google-btn svg  { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* ── DENIED VIEW ────────────────────────── */
+    #view-denied {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .denied-icon { font-size: 3rem; }
+    #view-denied h2 { font-size: 1.4rem; color: var(--red); }
+    #view-denied p  { color: var(--gray); max-width: 340px; line-height: 1.65; }
+    #view-denied button {
+      margin-top: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--gray-l);
+      font-family: inherit;
+      font-size: .9rem;
+      padding: 10px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* ── LOADING VIEW ───────────────────────── */
+    #view-loading {
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── DASHBOARD ──────────────────────────── */
+    #view-dashboard { flex-direction: column; min-height: 100vh; }
+
+    /* NAV */
+    .admin-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(13,13,13,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .admin-nav-right { display: flex; align-items: center; gap: 14px; }
+    .admin-nav-right .nav-logo { height: 34px; mix-blend-mode: screen; display: block; }
+    .admin-nav-title { font-weight: 700; font-size: .95rem; color: var(--gray-l); }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px 5px 5px;
+      font-size: .82rem;
+      color: var(--gray-l);
+    }
+    .user-chip img {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .logout-btn {
+      background: transparent;
+      border: 1px solid rgba(239,68,68,.35);
+      color: var(--red);
+      font-family: inherit;
+      font-size: .82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .logout-btn:hover { background: rgba(239,68,68,.1); }
+
+    /* MAIN */
+    .admin-main { padding: 28px; flex: 1; }
+
+    /* STATS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-label { font-size: .75rem; color: var(--gray); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-value { font-size: 2rem; font-weight: 900; }
+    .stat-card.s-total  .stat-value { color: var(--purple); }
+    .stat-card.s-new    .stat-value { color: var(--blue); }
+    .stat-card.s-active .stat-value { color: var(--yellow); }
+    .stat-card.s-won    .stat-value { color: var(--green); }
+    .stat-card.s-lost   .stat-value { color: var(--gray); }
+
+    /* TOOLBAR */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar input[type="search"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .9rem;
+      direction: rtl;
+      outline: none;
+      min-width: 220px;
+      flex: 1;
+      transition: border-color .2s;
+    }
+    .toolbar input[type="search"]:focus { border-color: var(--purple); }
+    .toolbar input::placeholder { color: rgba(156,163,175,.4); }
+
+    .filter-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 14px;
+      color: var(--gray);
+      font-family: inherit;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, color .2s, border-color .2s;
+    }
+    .filter-btn.active, .filter-btn:hover {
+      background: var(--purple-d);
+      border-color: var(--purple);
+      color: var(--white);
+    }
+
+    .add-btn {
+      background: linear-gradient(135deg, var(--purple), var(--purple-d));
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s;
+      margin-right: auto;
+    }
+    .add-btn:hover { opacity: .88; }
+
+    /* TABLE */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    thead th {
+      background: var(--card);
+      padding: 12px 16px;
+      text-align: right;
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid rgba(139,92,246,.08); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(139,92,246,.05); }
+    td { padding: 13px 16px; font-size: .88rem; vertical-align: middle; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-new          { background: rgba(59,130,246,.15);  color: #60A5FA; }
+    .status-contacted    { background: rgba(245,158,11,.15);  color: #FCD34D; }
+    .status-meeting_set  { background: rgba(139,92,246,.2);   color: #A78BFA; }
+    .status-closed_won   { background: rgba(16,185,129,.15);  color: #34D399; }
+    .status-closed_lost  { background: rgba(156,163,175,.12); color: #9CA3AF; }
+
+    .status-select {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .8rem;
+      padding: 4px 8px;
+      cursor: pointer;
+      outline: none;
+      direction: rtl;
+    }
+    .status-select:focus { border-color: var(--purple); }
+
+    .td-actions { display: flex; gap: 8px; align-items: center; }
+    .action-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-family: inherit;
+      font-size: .78rem;
+      cursor: pointer;
+      color: var(--gray);
+      transition: all .2s;
+    }
+    .action-btn:hover { color: var(--white); border-color: rgba(255,255,255,.3); }
+    .action-btn.delete { color: var(--red); border-color: rgba(239,68,68,.25); }
+    .action-btn.delete:hover { background: rgba(239,68,68,.1); border-color: var(--red); }
+
+    .empty-state {
+      text-align: center;
+      padding: 56px 24px;
+      color: var(--gray);
+    }
+    .empty-state p { font-size: .95rem; margin-top: 10px; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; }
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label { display: block; font-size: .83rem; color: var(--gray-l); margin-bottom: 6px; font-weight: 600; }
+    .modal-field input, .modal-field select, .modal-field textarea {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px;
+      padding: 10px 13px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .9rem;
+      direction: rtl;
+      outline: none;
+    }
+    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--purple); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+    .modal-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--gray);
+      font-family: inherit;
+      font-size: .9rem;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .modal-save {
+      background: linear-gradient(135deg, var(--purple), var(--purple-d));
+      border: none;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 700;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* CONFIRM MODAL */
+    .confirm-msg { color: var(--gray); font-size: .9rem; line-height: 1.6; margin-bottom: 16px; }
+    .confirm-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 8px;
+      padding: 10px 13px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .9rem;
+      direction: rtl;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    .confirm-input:focus { border-color: var(--red); }
+    .modal-delete {
+      background: var(--red);
+      border: none;
+      color: var(--white);
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 700;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .modal-delete:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .admin-nav { padding: 0 14px; }
+      .admin-main { padding: 16px; }
+      .admin-nav-title { display: none; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .filter-btns { gap: 4px; }
+      .filter-btn { padding: 6px 10px; font-size: .75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── VIEW: טוען ── -->
+<div id="view-loading" class="view active">
+  <div class="spinner"></div>
+  <span style="color:var(--gray);font-size:.9rem">טוען...</span>
+</div>
+
+<!-- ── VIEW: התחברות ── -->
+<div id="view-login" class="view">
+  <img src="logo.png" alt="פסגות נכסים" class="login-logo" />
+  <h1>ממשק ניהול לידים</h1>
+  <p>כניסה מורשית לבעל העסק בלבד</p>
+  <button class="google-btn" onclick="loginWithGoogle()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    כניסה עם Google
+  </button>
+  <p style="font-size:.76rem;color:rgba(156,163,175,.4)">רק החשבון המאושר יוכל להיכנס</p>
+</div>
+
+<!-- ── VIEW: גישה נדחתה ── -->
+<div id="view-denied" class="view">
+  <div class="denied-icon">🚫</div>
+  <h2>גישה נדחתה</h2>
+  <p>החשבון שנכנסת איתו אינו מאושר לגישה לממשק הניהול.</p>
+  <button onclick="logout()">יציאה וניסיון עם חשבון אחר</button>
+</div>
+
+<!-- ── VIEW: דשבורד ── -->
+<div id="view-dashboard" class="view">
+
+  <!-- NAV -->
+  <nav class="admin-nav">
+    <div class="admin-nav-right">
+      <img src="logo.png" alt="פסגות נכסים" class="nav-logo" />
+      <span class="admin-nav-title">ניהול לידים</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="user-chip">
+        <img id="user-avatar" src="" alt="" onerror="this.style.display='none'" />
+        <span id="user-name">—</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">יציאה</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="admin-main">
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card s-total">
+        <div class="stat-label">סה"כ לידים</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card s-new">
+        <div class="stat-label">חדשים</div>
+        <div class="stat-value" id="stat-new">—</div>
+      </div>
+      <div class="stat-card s-active">
+        <div class="stat-label">בתהליך</div>
+        <div class="stat-value" id="stat-active">—</div>
+      </div>
+      <div class="stat-card s-won">
+        <div class="stat-label">סגורים ✓</div>
+        <div class="stat-value" id="stat-won">—</div>
+      </div>
+      <div class="stat-card s-lost">
+        <div class="stat-label">לא סגרו</div>
+        <div class="stat-value" id="stat-lost">—</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="חיפוש לפי שם / טלפון..." oninput="filterLeads()" />
+      <div class="filter-btns">
+        <button class="filter-btn active" data-filter="all"          onclick="setFilter(this)">הכל</button>
+        <button class="filter-btn"        data-filter="new"          onclick="setFilter(this)">חדש</button>
+        <button class="filter-btn"        data-filter="contacted"    onclick="setFilter(this)">יצרתי קשר</button>
+        <button class="filter-btn"        data-filter="meeting_set"  onclick="setFilter(this)">פגישה</button>
+        <button class="filter-btn"        data-filter="closed_won"   onclick="setFilter(this)">נסגר ✓</button>
+        <button class="filter-btn"        data-filter="closed_lost"  onclick="setFilter(this)">לא סגר</button>
+      </div>
+      <button class="add-btn" onclick="openAddModal()">+ הוסף ליד ידנית</button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>שם</th>
+            <th>טלפון</th>
+            <th>חדרים</th>
+            <th>מחיר</th>
+            <th>שפה</th>
+            <th>סטטוס</th>
+            <th>תאריך</th>
+            <th>פעולות</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody">
+          <tr><td colspan="8"><div class="empty-state"><div class="spinner"></div><p>טוען לידים...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── MODAL: הוספת ליד ── -->
+<div id="modal-add" class="modal-overlay">
+  <div class="modal">
+    <h3>הוספת ליד ידנית</h3>
+    <div class="modal-field">
+      <label>שם מלא *</label>
+      <input type="text" id="add-name" placeholder="ישראל ישראלי" maxlength="60" />
+    </div>
+    <div class="modal-field">
+      <label>טלפון *</label>
+      <input type="tel" id="add-phone" placeholder="05X-XXXXXXX" maxlength="15" dir="ltr" style="text-align:right" />
+    </div>
+    <div class="modal-field">
+      <label>שכונה / רחוב</label>
+      <input type="text" id="add-address" placeholder="שכונה ד׳..." maxlength="120" />
+    </div>
+    <div class="modal-field">
+      <label>חדרים</label>
+      <select id="add-rooms">
+        <option value="">בחר...</option>
+        <option>2 חדרים</option><option>3 חדרים</option>
+        <option>4 חדרים</option><option>5 חדרים ומעלה</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>מחיר מבוקש</label>
+      <input type="text" id="add-price" placeholder="₪750,000" maxlength="20" />
+    </div>
+    <div class="modal-field">
+      <label>הערות</label>
+      <textarea id="add-notes" rows="3" maxlength="500" placeholder="מידע נוסף..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal('modal-add')">ביטול</button>
+      <button class="modal-save"   onclick="saveLead()">שמור ליד</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: אישור מחיקה ── -->
+<div id="modal-delete" class="modal-overlay">
+  <div class="modal">
+    <h3>⚠️ מחיקת ליד</h3>
+    <p class="confirm-msg">
+      פעולה זו בלתי הפיכה. הקלד את ביטוי האישור כדי להמשיך:
+    </p>
+    <input type="text" class="confirm-input" id="confirm-input"
+           placeholder='הקלד: אני מאשר מחיקה'
+           oninput="document.getElementById('confirm-delete-btn').disabled = this.value !== 'אני מאשר מחיקה'" />
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal('modal-delete')">ביטול</button>
+      <button class="modal-delete" id="confirm-delete-btn" disabled onclick="confirmDelete()">מחק סופית</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ══════════════════════════════════════════
+     הגדרות — מלא את הפרטים שלך!
+  ══════════════════════════════════════════ */
+  var SUPABASE_URL     = 'https://zelsnjtiahstjvoohvpb.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplbHNuanRpYWhzdGp2b29odnBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Mzk4NzMsImV4cCI6MjA5NzIxNTg3M30.PCEuYuw5VwnVJ5ToT-OpdyZIpJtb5I8aHIkUwgwYOpk';
+  var ALLOWED_EMAILS   = ['odedpery8@gmail.com'];   // whitelist — רק חשבונות אלה מאושרים
+
+  var DEV = (location.hostname === '' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  var dbg = DEV ? console.log.bind(console, '[ADMIN]') : function () {};
+
+  /* ── Init Supabase ── */
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  /* ══════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════ */
+  var allLeads     = [];
+  var currentFilter = 'all';
+  var pendingDeleteId = null;
+
+  /* ══════════════════════════════════════════
+     VIEWS
+  ══════════════════════════════════════════ */
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+    document.getElementById('view-' + name).classList.add('active');
+  }
+
+  /* ══════════════════════════════════════════
+     AUTH — התחברות ראשונה וחוזרת
+  ══════════════════════════════════════════ */
+  window.loginWithGoogle = function () {
+    sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.href }
+    });
+  };
+
+  window.logout = function () {
+    sb.auth.signOut();
+  };
+
+  function isAllowed(email) {
+    return ALLOWED_EMAILS.indexOf(email) !== -1;
+  }
+
+  /* מאזין לכל שינוי auth: login / logout / refresh / החלפת חשבון */
+  sb.auth.onAuthStateChange(async function (event, session) {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      if (!session) { showView('login'); return; }
+
+      /* בדיקת whitelist (client-side, מהיר) */
+      if (!isAllowed(session.user.email)) {
+        sb.auth.signOut();
+        showView('denied');
+        return;
+      }
+
+      /* בדיקת role מה-DB — הגנה בשכבות: מונע גישה אפילו אם ה-whitelist נעקף */
+      var profRes = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+      if (!profRes.data || profRes.data.role !== 3) {
+        sb.auth.signOut();
+        showView('denied');
+        return;
+      }
+
+      /* עדכון פרטי משתמש ב-nav */
+      var meta = session.user.user_metadata || {};
+      document.getElementById('user-name').textContent = meta.full_name || meta.name || session.user.email;
+      if (meta.avatar_url || meta.picture) {
+        document.getElementById('user-avatar').src = meta.avatar_url || meta.picture;
+        document.getElementById('user-avatar').style.display = 'block';
+      }
+
+      showView('dashboard');
+      loadLeads();
+    } else if (event === 'SIGNED_OUT') {
+      allLeads = [];
+      showView('login');
+    }
+  });
+
+  /* בדיקת session קיימת (רענון עמוד / חזרה לאתר) */
+  (async function () {
+    var _ref = await sb.auth.getSession();
+    var session = _ref.data.session;
+    if (!session) {
+      showView('login');
+    }
+    /* onAuthStateChange יטפל בהמשך */
+  })();
+
+  /* ══════════════════════════════════════════
+     DATA — טעינת לידים
+  ══════════════════════════════════════════ */
+  async function loadLeads() {
+    var _ref = await sb.from('leads').select('*').order('created_at', { ascending: false });
+    if (_ref.error) { dbg('loadLeads error', _ref.error); return; }
+    allLeads = _ref.data || [];
+    updateStats();
+    renderLeads();
+  }
+
+  function updateStats() {
+    var total    = allLeads.length;
+    var newCount = allLeads.filter(function (l) { return l.status === 'new'; }).length;
+    var active   = allLeads.filter(function (l) { return l.status === 'contacted' || l.status === 'meeting_set'; }).length;
+    var won      = allLeads.filter(function (l) { return l.status === 'closed_won'; }).length;
+    var lost     = allLeads.filter(function (l) { return l.status === 'closed_lost'; }).length;
+
+    document.getElementById('stat-total').textContent  = total;
+    document.getElementById('stat-new').textContent    = newCount;
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-won').textContent    = won;
+    document.getElementById('stat-lost').textContent   = lost;
+  }
+
+  /* ── פילטור ── */
+  window.setFilter = function (btn) {
+    document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderLeads();
+  };
+
+  window.filterLeads = function () { renderLeads(); };
+
+  function renderLeads() {
+    var search = (document.getElementById('search-input').value || '').trim().toLowerCase();
+    var filtered = allLeads.filter(function (l) {
+      if (currentFilter !== 'all' && l.status !== currentFilter) return false;
+      if (search && !((l.name || '').toLowerCase().includes(search)) && !(l.phone || '').includes(search)) return false;
+      return true;
+    });
+
+    var STATUS_HE = {
+      new: 'חדש', contacted: 'יצרתי קשר',
+      meeting_set: 'פגישה', closed_won: 'נסגר', closed_lost: 'לא סגר'
+    };
+
+    var tbody = document.getElementById('leads-tbody');
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>אין לידים להצגה</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(function (l) {
+      var date = new Date(l.created_at).toLocaleDateString('he-IL');
+      var statusOpts = Object.keys(STATUS_HE).map(function (k) {
+        return '<option value="' + k + '"' + (l.status === k ? ' selected' : '') + '>' + STATUS_HE[k] + '</option>';
+      }).join('');
+      return '<tr>' +
+        '<td>' + esc(l.name) + '</td>' +
+        '<td dir="ltr" style="text-align:right">' + esc(l.phone) + '</td>' +
+        '<td>' + (l.rooms || '—') + '</td>' +
+        '<td dir="ltr" style="text-align:right">' + (l.price || '—') + '</td>' +
+        '<td>' + (l.language === 'ru' ? '🇷🇺' : '🇮🇱') + '</td>' +
+        '<td><select class="status-select" data-id="' + l.id + '">' + statusOpts + '</select></td>' +
+        '<td style="color:var(--gray);white-space:nowrap">' + date + '</td>' +
+        '<td><div class="td-actions">' +
+          '<button class="action-btn delete" data-action="delete" data-id="' + l.id + '">מחק</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll('.status-select').forEach(function (sel) {
+      sel.addEventListener('change', function () { updateStatus(this.dataset.id, this.value); });
+    });
+    tbody.querySelectorAll('[data-action="delete"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openDeleteModal(this.dataset.id); });
+    });
+  }
+
+  /* ── עדכון סטטוס ── */
+  window.updateStatus = async function (id, newStatus) {
+    var _ref = await sb.from('leads').update({ status: newStatus }).eq('id', id);
+    if (_ref.error) { alert('שגיאה בעדכון סטטוס'); return; }
+    var lead = allLeads.find(function (l) { return l.id === id; });
+    if (lead) { lead.status = newStatus; updateStats(); }
+  };
+
+  /* ══════════════════════════════════════════
+     MODAL: הוספת ליד
+  ══════════════════════════════════════════ */
+  window.openAddModal = function () {
+    ['add-name','add-phone','add-address','add-price','add-notes'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('add-rooms').value = '';
+    document.getElementById('modal-add').classList.add('open');
+  };
+
+  window.saveLead = async function () {
+    var name  = document.getElementById('add-name').value.trim();
+    var phone = document.getElementById('add-phone').value.trim().replace(/[-\s]/g, '');
+    if (name.length < 2) { alert('נא למלא שם'); return; }
+    if (!/^0[5][0-9]{8}$/.test(phone)) { alert('מספר טלפון לא תקין'); return; }
+
+    var _ref = await sb.from('leads').insert({
+      owner_id: (await sb.auth.getUser()).data.user.id,
+      name:     name,
+      phone:    phone,
+      address:  document.getElementById('add-address').value.trim() || null,
+      rooms:    document.getElementById('add-rooms').value || null,
+      price:    document.getElementById('add-price').value.trim() || null,
+      notes:    document.getElementById('add-notes').value.trim() || null,
+      source:   'manual'
+    });
+
+    if (_ref.error) {
+      alert(_ref.error.code === '23505' ? 'טלפון זה כבר קיים' : 'שגיאה בשמירה');
+      return;
+    }
+    closeModal('modal-add');
+    loadLeads();
+  };
+
+  /* ══════════════════════════════════════════
+     MODAL: מחיקה עם אישור כפול
+  ══════════════════════════════════════════ */
+  window.openDeleteModal = function (id) {
+    pendingDeleteId = id;
+    document.getElementById('confirm-input').value = '';
+    document.getElementById('confirm-delete-btn').disabled = true;
+    document.getElementById('modal-delete').classList.add('open');
+  };
+
+  window.confirmDelete = async function () {
+    if (!pendingDeleteId) return;
+    var _ref = await sb.rpc('delete_lead', {
+      p_lead_id: pendingDeleteId,
+      p_confirm_phrase: 'אני מאשר מחיקה'
+    });
+    if (_ref.error) { dbg('delete error', _ref.error); alert('שגיאה במחיקה — נסה שנית'); return; }
+    closeModal('modal-delete');
+    allLeads = allLeads.filter(function (l) { return l.id !== pendingDeleteId; });
+    pendingDeleteId = null;
+    updateStats();
+    renderLeads();
+  };
+
+  /* ── MODAL helpers ── */
+  window.closeModal = function (id) {
+    document.getElementById(id).classList.remove('open');
+  };
+  document.querySelectorAll('.modal-overlay').forEach(function (m) {
+    m.addEventListener('click', function (e) {
+      if (e.target === m) m.classList.remove('open');
+    });
+  });
+
+  /* ── utils ── */
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+})();
+</script>
+</body>
+</html>
